@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+/* Custom CSS variables for theming */
+:root {
+  --accent: #6366f1;
+  --accent-hover: #4f46e5;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+  }
+}
