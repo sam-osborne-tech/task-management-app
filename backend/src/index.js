@@ -19,10 +19,15 @@ const app = express();
 const httpServer = createServer(app);
 const PORT = process.env.PORT || 3001;
 
+// CORS origins - in production, allow same-origin (no specific origins needed)
+const corsOrigins = process.env.NODE_ENV === 'production'
+  ? true  // Allow all origins in production (frontend served from same origin)
+  : ['http://localhost:5173', 'http://localhost:3000', process.env.FRONTEND_URL].filter(Boolean);
+
 // Socket.io setup for real-time updates
 const io = new Server(httpServer, {
   cors: {
-    origin: ['http://localhost:5173', 'http://localhost:3000', process.env.FRONTEND_URL].filter(Boolean),
+    origin: corsOrigins,
     methods: ['GET', 'POST']
   }
 });
@@ -41,7 +46,7 @@ io.on('connection', (socket) => {
 
 // Middleware
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:3000', process.env.FRONTEND_URL].filter(Boolean),
+  origin: corsOrigins,
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));

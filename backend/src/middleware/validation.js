@@ -160,12 +160,12 @@ export const taskIdValidation = [
  */
 export const listTasksValidation = [
   query('status')
-    .optional()
+    .optional({ values: 'falsy' })
     .isIn(VALID_STATUSES)
     .withMessage(`Status filter must be one of: ${VALID_STATUSES.join(', ')}`),
   
   query('priority')
-    .optional()
+    .optional({ values: 'falsy' })
     .isIn(VALID_PRIORITIES)
     .withMessage(`Priority filter must be one of: ${VALID_PRIORITIES.join(', ')}`),
   
