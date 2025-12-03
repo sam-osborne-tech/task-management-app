@@ -17,11 +17,11 @@ flowchart TB
 
     subgraph Railway["Railway (Production)"]
         subgraph Express["Express.js Server"]
-            Static["Static Files\n(React Build)"]
-            API["REST API\n/api/tasks"]
-            WS["Socket.io\n(Real-time)"]
+            Static["Static Files<br/>(React Build)"]
+            API["REST API<br/>/api/tasks"]
+            WS["Socket.io<br/>(Real-time)"]
         end
-        Store[("In-Memory\nTask Store\n(Map-based)")]
+        Store[("In-Memory<br/>Task Store<br/>(Map-based)")]
     end
 
     React -->|HTTP| API
@@ -156,12 +156,12 @@ curl "https://task-management-app-production-e866.up.railway.app/api/tasks?statu
 ```mermaid
 flowchart LR
     subgraph Unit["Unit Tests"]
-        BE["Backend\n(Jest + Supertest)"]
-        FE["Frontend\n(Vitest + RTL)"]
+        BE["Backend<br/>(Jest + Supertest)"]
+        FE["Frontend<br/>(Vitest + RTL)"]
     end
 
     subgraph E2E["E2E Tests"]
-        PW["Playwright\n(27 tests)"]
+        PW["Playwright<br/>(27 tests)"]
     end
 
     BE -->|API endpoints| API[(API)]
