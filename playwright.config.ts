@@ -18,6 +18,10 @@ export default defineConfig({
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
     video: 'retain-on-failure',
+    viewport: { width: 1440, height: 900 },
+    launchOptions: {
+      slowMo: process.env.DEMO ? Number(process.env.DEMO) : 0,
+    },
   },
 
   projects: [

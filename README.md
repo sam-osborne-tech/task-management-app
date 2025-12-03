@@ -8,39 +8,59 @@ A full-stack task management application with a Node.js REST API backend and Rea
 
 ## Architecture Overview
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         Client Browser                          │
-└─────────────────────────┬───────────────────────────────────────┘
-                          │
-                          ▼
-┌─────────────────────────────────────────────────────────────────┐
-│                      Railway (Production)                        │
-│  ┌───────────────────────────────────────────────────────────┐  │
-│  │                    Express.js Server                       │  │
-│  │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────┐   │  │
-│  │  │ Static Files│  │  REST API   │  │   Socket.io     │   │  │
-│  │  │  (React)    │  │  /api/tasks │  │  (Real-time)    │   │  │
-│  │  └─────────────┘  └──────┬──────┘  └────────┬────────┘   │  │
-│  │                          │                   │            │  │
-│  │                          ▼                   ▼            │  │
-│  │               ┌──────────────────────────────────┐       │  │
-│  │               │      In-Memory Task Store        │       │  │
-│  │               │         (Map-based)              │       │  │
-│  │               └──────────────────────────────────┘       │  │
-│  └───────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Client["Client Browser"]
+        React["React SPA"]
+        Socket["Socket.io Client"]
+    end
+
+    subgraph Railway["Railway (Production)"]
+        subgraph Express["Express.js Server"]
+            Static["Static Files\n(React Build)"]
+            API["REST API\n/api/tasks"]
+            WS["Socket.io\n(Real-time)"]
+        end
+        Store[("In-Memory\nTask Store\n(Map-based)")]
+    end
+
+    React -->|HTTP| API
+    Socket <-->|WebSocket| WS
+    API --> Store
+    WS --> Store
+    Static -->|Serves| React
 ```
 
 **Frontend:** React SPA served as static files from Express  
 **Backend:** Express.js REST API with Socket.io for real-time updates  
 **Storage:** In-memory Map (designed for easy database migration)
 
+## Request Flow
+
+```mermaid
+sequenceDiagram
+    participant Browser
+    participant Express
+    participant Validation
+    participant Controller
+    participant TaskStore
+    participant Socket.io
+
+    Browser->>Express: POST /api/tasks
+    Express->>Validation: Validate request body
+    Validation->>Controller: Valid data
+    Controller->>TaskStore: create(taskData)
+    TaskStore-->>Controller: New task with ID
+    Controller->>Socket.io: Emit 'task:created'
+    Socket.io-->>Browser: Real-time update
+    Controller-->>Browser: 201 Created + task JSON
+```
+
 ## API Documentation
 
 Base URL: `/api`
 
-### Tasks
+### Endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -118,15 +138,95 @@ curl "https://task-management-app-production-e866.up.railway.app/api/tasks?statu
 - **Socket.io-client** - WebSocket client
 
 ### Testing
-- **Jest** - Backend testing
+- **Jest** - Backend unit testing
 - **Supertest** - HTTP assertions
-- **Vitest** - Frontend testing
+- **Vitest** - Frontend unit testing
 - **React Testing Library** - Component testing
+- **Playwright** - End-to-end testing
 
 ### DevOps
 - **GitHub Actions** - CI/CD pipeline
 - **Railway** - Hosting platform
 - **ESLint** - Code linting
+
+## Testing
+
+### Test Structure
+
+```mermaid
+flowchart LR
+    subgraph Unit["Unit Tests"]
+        BE["Backend\n(Jest + Supertest)"]
+        FE["Frontend\n(Vitest + RTL)"]
+    end
+
+    subgraph E2E["E2E Tests"]
+        PW["Playwright\n(27 tests)"]
+    end
+
+    BE -->|API endpoints| API[(API)]
+    FE -->|Components| UI[UI]
+    PW -->|Full app| PROD[Production URL]
+```
+
+### Running Tests
+
+```bash
+# Run all unit tests
+npm test
+
+# Run backend tests only
+npm run test:backend
+
+# Run frontend tests only
+npm run test:frontend
+
+# Run E2E tests (headless)
+npm run test:e2e
+
+# Run E2E tests with UI
+npm run test:e2e:ui
+```
+
+### E2E Test Demo Mode
+
+Run Playwright tests in a visible browser with adjustable speed:
+
+```bash
+# Demo mode with 2 second delay between actions
+DEMO=2000 npx playwright test --headed --reporter=list
+
+# Slower demo (3 seconds)
+DEMO=3000 npx playwright test --headed --reporter=list
+
+# Run specific test categories
+DEMO=2000 npx playwright test --headed --grep "Task Creation"
+DEMO=2000 npx playwright test --headed --grep "Task Filtering"
+```
+
+**Demo mode features:**
+- 🧪 Displays test name before each test runs
+- ⏱️ Configurable delay between actions (set via `DEMO` env var in ms)
+- ✅ 3-second pause at end of each test to see results
+- 🧹 Automatic cleanup of test data after run
+- 🖥️ Large viewport (1440x900) for visibility
+
+### E2E Test Coverage
+
+| Category | Tests | Description |
+|----------|-------|-------------|
+| Page Load & Layout | 4 | Header, stats panel, filters, tasks section |
+| Task Creation | 3 | Modal, form submission, validation |
+| Task Filtering | 4 | Search, status, priority, reset |
+| Task Operations | 2 | Display cards, status change |
+| Task Editing | 1 | Edit modal and form |
+| Task Deletion | 1 | Delete confirmation |
+| Sorting | 2 | Sort field and direction |
+| API Health | 3 | Health check, tasks, stats endpoints |
+| API CRUD | 3 | Create, read, update, delete cycle |
+| Responsive Design | 2 | Mobile (375px), tablet (768px) |
+| Export | 2 | JSON and CSV export |
+| **Total** | **27** | |
 
 ## Local Development
 
@@ -145,11 +245,6 @@ curl "https://task-management-app-production-e866.up.railway.app/api/tasks?statu
 2. **Install all dependencies:**
    ```bash
    npm run postinstall
-   ```
-   Or install separately:
-   ```bash
-   npm install --prefix backend
-   npm install --prefix frontend
    ```
 
 3. **Start the backend (Terminal 1):**
@@ -172,11 +267,28 @@ curl "https://task-management-app-production-e866.up.railway.app/api/tasks?statu
 | `npm run dev:frontend` | Start frontend in development mode |
 | `npm run build` | Build frontend and copy to backend/public |
 | `npm start` | Start production server |
-| `npm test` | Run all tests |
+| `npm test` | Run all unit tests |
 | `npm run test:backend` | Run backend tests only |
 | `npm run test:frontend` | Run frontend tests only |
+| `npm run test:e2e` | Run Playwright E2E tests (headless) |
+| `npm run test:e2e:ui` | Run E2E tests with Playwright UI |
 
 ## Deployment
+
+### Deployment Flow
+
+```mermaid
+flowchart LR
+    A[Git Push] --> B[GitHub Actions]
+    B --> C{Tests Pass?}
+    C -->|Yes| D[Railway Build]
+    C -->|No| E[Fail]
+    D --> F[npm install]
+    F --> G[postinstall]
+    G --> H[npm run build]
+    H --> I[npm start]
+    I --> J[Live on Railway]
+```
 
 ### Railway Deployment
 
@@ -197,41 +309,54 @@ The application is deployed on Railway with automatic deploys from the `main` br
 
 ### Manual Deployment
 
-1. Build the application:
-   ```bash
-   npm run build
-   ```
+```bash
+# Build the application
+npm run build
 
-2. The `backend/public` folder now contains the frontend build
-
-3. Start the server:
-   ```bash
-   NODE_ENV=production npm start
-   ```
+# Start production server
+NODE_ENV=production npm start
+```
 
 ## Project Structure
 
-```
-├── backend/
-│   ├── src/
-│   │   ├── controllers/    # Request handlers
-│   │   ├── middleware/     # Validation, error handling
-│   │   ├── routes/         # API route definitions
-│   │   ├── storage/        # In-memory data store
-│   │   └── index.js        # Express app entry point
-│   ├── tests/              # Backend tests
-│   └── public/             # Frontend build (production)
-├── frontend/
-│   ├── src/
-│   │   ├── components/     # React components
-│   │   ├── context/        # React Context (state management)
-│   │   ├── hooks/          # Custom React hooks
-│   │   ├── pages/          # Page components
-│   │   └── services/       # API client
-│   └── tests/              # Frontend tests
-├── .github/workflows/      # CI/CD configuration
-├── package.json            # Root package with scripts
-└── README.md               # This file
+```mermaid
+flowchart TB
+    subgraph Root["/"]
+        pkg["package.json"]
+        readme["README.md"]
+        pwconfig["playwright.config.ts"]
+    end
+
+    subgraph Backend["backend/"]
+        subgraph src["src/"]
+            index["index.js"]
+            controllers["controllers/"]
+            middleware["middleware/"]
+            routes["routes/"]
+            storage["storage/"]
+        end
+        tests["tests/"]
+        public["public/"]
+    end
+
+    subgraph Frontend["frontend/"]
+        subgraph fsrc["src/"]
+            components["components/"]
+            context["context/"]
+            hooks["hooks/"]
+            pages["pages/"]
+            services["services/"]
+        end
+        ftests["tests/"]
+    end
+
+    subgraph E2E["e2e/"]
+        specs["task-management.spec.ts"]
+    end
+
+    subgraph GH[".github/"]
+        workflows["workflows/ci.yml"]
+    end
 ```
 
 ## Assumptions
@@ -259,8 +384,8 @@ The application is deployed on Railway with automatic deploys from the `main` br
 - ✅ Export to JSON/CSV
 - ✅ Responsive design (mobile + desktop)
 - ✅ CI/CD pipeline with GitHub Actions
+- ✅ Comprehensive E2E test suite with demo mode
 
 ## License
 
 ISC
-

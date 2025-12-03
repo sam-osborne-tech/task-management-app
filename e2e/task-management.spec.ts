@@ -5,12 +5,54 @@ import { test, expect } from '@playwright/test';
  * Tests against the live production URL
  */
 
+// Track created task IDs for cleanup
+const createdTaskIds: string[] = [];
+
 test.describe('Task Management App', () => {
   
   test.beforeEach(async ({ page }) => {
+    // Log which test is starting
+    console.log(`\n🧪 Running: ${test.info().title}`);
+    console.log(`   ${test.info().titlePath.join(' > ')}\n`);
+    
     await page.goto('/');
     // Wait for the app to load
     await expect(page.locator('h1')).toContainText('Task Manager');
+  });
+
+  test.afterEach(async ({ page }) => {
+    // In demo mode, pause at the end so user can see the final state
+    if (process.env.DEMO) {
+      console.log('   ✅ Test complete - pausing to show result...\n');
+      await page.waitForTimeout(3000);
+    }
+  });
+
+  test.afterAll(async ({ request }) => {
+    // Cleanup: Delete all test tasks created during this run
+    console.log('\n🧹 Cleaning up test data...');
+    
+    // Fetch all tasks and find ones matching test patterns
+    const response = await request.get('/api/tasks?limit=100');
+    if (response.ok()) {
+      const data = await response.json();
+      const testTasks = data.data.filter((task: any) => 
+        task.title.includes('E2E Test Task') || 
+        task.title.includes('API Test Task')
+      );
+      
+      // Delete each test task
+      for (const task of testTasks) {
+        await request.delete(`/api/tasks/${task.id}`);
+        console.log(`   Deleted: ${task.title}`);
+      }
+      
+      if (testTasks.length > 0) {
+        console.log(`✅ Cleaned up ${testTasks.length} test task(s)\n`);
+      } else {
+        console.log('   No test tasks to clean up\n');
+      }
+    }
   });
 
   test.describe('Page Load & Layout', () => {
